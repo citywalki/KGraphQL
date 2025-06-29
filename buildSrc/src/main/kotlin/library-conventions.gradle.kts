@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
@@ -9,7 +8,7 @@ plugins {
 }
 
 group = "de.stuebingerb"
-version = "0.32.0"
+version = "0.33.0"
 
 kotlin {
     jvmToolchain(17)
@@ -26,7 +25,7 @@ dokka {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
     pom {
         name.set("KGraphQL")
