@@ -177,6 +177,40 @@ class ParallelRequestExecutor(val schema: DefaultSchema) : RequestExecutor {
                 createObjectNode(ctx, value, node.memberExecution(returnType), returnType)
             }
 
+            returnType is Type.ValueObject<*> || returnType.unwrapped() is Type.ValueObject<*> -> {
+
+                val type = if (returnType is Type.ValueObject<*>) returnType else returnType.unwrapped() as Type.ValueObject<*>
+                val field = type.field
+                val parentValue = value
+
+               return when {
+                    field is Field.Kotlin<*, *> -> {
+                        val rawValue = try {
+                            (field.kProperty as KProperty1<T, *>).get(parentValue)
+                        } catch (e: IllegalArgumentException) {
+                            throw ExecutionException(
+                                "Couldn't retrieve '${field.kProperty.name}' from class ${parentValue}}",
+                                node,
+                                e
+                            )
+                        }
+                        val value: Any? = field.transformation?.invoke(
+                            funName = field.name,
+                            receiver = rawValue,
+                            inputValues = field.arguments,
+                            args = node.arguments,
+                            executionNode = node,
+                            ctx = ctx
+                        ) ?: rawValue
+
+                        createNode(ctx,value,node,field.returnType.ofType!!)
+                    }
+
+                   else -> error("Unexpected field type: $field, should be Field.Kotlin, Field.Function or Field.DataLoader")
+               }
+
+            }
+
             // TODO: do we have to consider more? more validation e.g.?
             value is JsonNode -> value
 

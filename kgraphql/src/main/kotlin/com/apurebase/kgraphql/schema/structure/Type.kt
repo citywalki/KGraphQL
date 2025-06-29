@@ -90,6 +90,31 @@ interface Type : __Type {
         override fun isInstance(value: Any?): Boolean = false
     }
 
+    class ValueObject<T : Any>(
+        override val kClass: KClass<T>,
+        val field: Field,
+        override val interfaces: List<Type>? = emptyList()
+    ) : Type {
+
+        override val kind: TypeKind = TypeKind.SCALAR
+
+        override val name: String? = field.returnType.ofType?.name
+
+        override val description: String? = field.returnType.ofType?.description
+
+        override val enumValues: List<__EnumValue>? = null
+
+        override val inputFields: List<__InputValue>? = null
+
+        override val ofType: Type? = null
+
+        override val fields: List<Field>? = null
+
+        override val possibleTypes: List<Type>? = null
+
+//        val coercion = field.returnType.ofType?.cz
+    }
+
     class Object<T : Any>(
         private val definition: TypeDef.Object<T>,
         fields: List<Field> = emptyList(),

@@ -203,6 +203,8 @@ open class SchemaCompilation(
                 description = null
             ).let { applyNullability(kType.isMarkedNullable, handleUnionType(it)) }
 
+            kType.jvmErasure.isValue -> handleValueClassType(kType, typeCategory)
+
             else -> handleSimpleType(kType, typeCategory)
         }
     } catch (e: Throwable) {
@@ -218,6 +220,36 @@ open class SchemaCompilation(
         val type = kType.getIterableElementType()
         val nullableListType = Type.AList(handlePossiblyWrappedType(type, typeCategory), kType.jvmErasure)
         return applyNullability(kType.isMarkedNullable, nullableListType)
+    }
+
+    private suspend fun handleValueClassType(kType: KType, typeCategory: TypeCategory): Type {
+        val kClass = kType.jvmErasure
+        val objectDefs = definition.objects.filter { it.kClass.isSuperclassOf(kClass) }
+        val objectDef = objectDefs.find { it.kClass == kClass } ?: TypeDef.Object(kClass.defaultKQLTypeName(), kClass)
+
+        val allKotlinProperties = objectDefs.fold(emptyMap<String, PropertyDef.Kotlin<*, *>>()) { acc, def ->
+            acc + def.kotlinProperties.mapKeys { (property) -> property.name }
+        }
+        val allTransformations = objectDefs.fold(emptyMap<String, Transformation<*, *>>()) { acc, def ->
+            acc + def.transformations.mapKeys { (property) -> property.name }
+        }
+
+        val kotlinField = kClass.memberProperties
+            .first()
+            .let { property ->
+                handleKotlinProperty(
+                    kProperty = property,
+                    kqlProperty = allKotlinProperties[property.name],
+                    transformation = allTransformations[property.name]
+                )
+            }
+
+        val nullableValueType = Type.ValueObject(
+            kClass,
+            field = kotlinField,
+        )
+
+        return applyNullability(kType.isMarkedNullable, nullableValueType)
     }
 
     private suspend fun handleSimpleType(kType: KType, typeCategory: TypeCategory): Type {
